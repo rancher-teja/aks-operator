@@ -1,0 +1,10 @@
+apiVersion: aks.cattle.io/v1
+kind: AKSClusterConfig
+metadata:
+  name: my-import-cluster
+spec:
+  clusterName: my-import-cluster
+  azureCredentialSecret: "REPLACE_WITH_K8S_SECRETS_NAME"
+  resourceGroup: "my-group"
+  resourceLocation: "westus"
+  imported: true
