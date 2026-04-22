@@ -1,8 +1,13 @@
 module github.com/rancher/aks-operator
 
-go 1.25.0
+go 1.26.0
 
-replace k8s.io/client-go => k8s.io/client-go v0.35.1
+replace(
+	 k8s.io/client-go => k8s.io/client-go v0.36.0
+	 github.com/rancher/wrangler/v3 => github.com/rancher-teja/wrangler/v3 v3.6.0-rc.1.0.20260422041726-1ad245aff676
+	 github.com/rancher/lasso => github.com/rancher-teja/lasso v0.2.9-0.20260422040228-70d37649eb87
+	 github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20240821150307-952f563826f5
+)
 
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
@@ -25,11 +30,11 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
 	golang.org/x/net v0.52.0
-	k8s.io/api v0.35.1
-	k8s.io/apiextensions-apiserver v0.35.1
-	k8s.io/apimachinery v0.35.1
-	k8s.io/apiserver v0.35.1
-	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/api v0.36.0
+	k8s.io/apiextensions-apiserver v0.36.0
+	k8s.io/apimachinery v0.36.0
+	k8s.io/apiserver v0.36.0
+	k8s.io/client-go v0.36.0
 	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/yaml v1.6.0
 )
