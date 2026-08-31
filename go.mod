@@ -108,12 +108,13 @@ require (
 )
 
 
+
 replace github.com/rancher/lasso => github.com/rancher-teja/lasso v0.2.9-0.20260831033458-c4edd3080be1
 replace github.com/rancher/wrangler => github.com/rancher-teja/wrangler v0.0.0-00010101000000-000000000000
-replace github.com/rancher/apiserver => github.com/rancher-teja/apiserver v0.9.3-0.20260831035706-4c64ba7355e9
-replace github.com/rancher/channelserver => github.com/rancher-teja/channelserver v0.0.0-20260831035724-2297d874aff9
-replace github.com/rancher/steve => github.com/rancher-teja/steve v0.8.8-0.20260831035739-dca87d8f21f7
-replace github.com/rancher/dynamiclistener => github.com/rancher-teja/dynamiclistener v0.8.2-0.20260831040051-ab423f4b7943
-replace github.com/rancher/norman => github.com/rancher-teja/norman v0.9.3-0.20260831040101-b384a68e8b0e
-replace github.com/rancher/machine => github.com/rancher-teja/machine v0.15.1-0.20260831040114-aad7eb7d65ed
+replace github.com/rancher/apiserver => github.com/rancher-teja/apiserver v0.9.3-0.20260831040730-238e2e4acb04
+replace github.com/rancher/channelserver => github.com/rancher-teja/channelserver v0.0.0-20260831040741-0efeb9f34bbf
+replace github.com/rancher/steve => github.com/rancher-teja/steve v0.8.8-0.20260831040752-3f70abf7aa80
+replace github.com/rancher/dynamiclistener => github.com/rancher-teja/dynamiclistener v0.8.2-0.20260831040854-1e3341228389
+replace github.com/rancher/norman => github.com/rancher-teja/norman v0.9.3-0.20260831040905-3fc1f1358718
+replace github.com/rancher/machine => github.com/rancher-teja/machine v0.15.1-0.20260831040916-e9c17b56761b
 replace github.com/rancher/shell => github.com/rancher-teja/shell v0.0.0-00010101000000-000000000000
