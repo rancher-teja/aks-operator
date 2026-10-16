@@ -146,6 +146,10 @@ type AKSClusterConfigSpec struct {
 	ManagedIdentity *bool `json:"managedIdentity" norman:"pointer"`
 	// UserAssignedIdentity - User assigned identity to be used for the cluster.
 	UserAssignedIdentity *string `json:"userAssignedIdentity" norman:"pointer"`
+	// DisableLocalAccounts - Whether local accounts (admin kubeconfig access) are disabled on the cluster.
+	// When true, Rancher authenticates to the cluster with Microsoft Entra ID tokens.
+	// +optional
+	DisableLocalAccounts *bool `json:"disableLocalAccounts,omitempty" norman:"pointer,noupdate"`
 }
 
 type AKSClusterConfigStatus struct {

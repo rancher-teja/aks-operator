@@ -39,6 +39,9 @@ spec:
               clusterName:
                 nullable: true
                 type: string
+              disableLocalAccounts:
+                nullable: true
+                type: boolean
               dnsPrefix:
                 nullable: true
                 type: string

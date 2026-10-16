@@ -57,7 +57,8 @@ func createManagedCluster(ctx context.Context, cred *Credentials, workplacesClie
 		Name:     to.Ptr(spec.ClusterName),
 		Location: to.Ptr(spec.ResourceLocation),
 		Properties: &armcontainerservice.ManagedClusterProperties{
-			KubernetesVersion: spec.KubernetesVersion,
+			KubernetesVersion:    spec.KubernetesVersion,
+			DisableLocalAccounts: spec.DisableLocalAccounts,
 		},
 	}
 

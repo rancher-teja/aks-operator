@@ -242,6 +242,11 @@ func (in *AKSClusterConfigSpec) DeepCopyInto(out *AKSClusterConfigSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.DisableLocalAccounts != nil {
+		in, out := &in.DisableLocalAccounts, &out.DisableLocalAccounts
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
