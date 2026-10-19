@@ -21,6 +21,12 @@ spec:
         properties:
           spec:
             properties:
+              aadAdminGroupObjectIds:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
               authBaseUrl:
                 nullable: true
                 type: string
@@ -39,6 +45,9 @@ spec:
               clusterName:
                 nullable: true
                 type: string
+              disableLocalAccounts:
+                nullable: true
+                type: boolean
               dnsPrefix:
                 nullable: true
                 type: string

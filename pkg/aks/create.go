@@ -61,6 +61,18 @@ func createManagedCluster(ctx context.Context, cred *Credentials, workplacesClie
 		},
 	}
 
+	// Azure only accepts disableLocalAccounts on a cluster with managed Entra ID integration.
+	if Bool(spec.DisableLocalAccounts) {
+		if len(spec.AADAdminGroupObjectIDs) == 0 {
+			return nil, fmt.Errorf("aadAdminGroupObjectIds must be set when disableLocalAccounts is true")
+		}
+		managedCluster.Properties.DisableLocalAccounts = to.Ptr(true)
+		managedCluster.Properties.AADProfile = &armcontainerservice.ManagedClusterAADProfile{
+			Managed:             to.Ptr(true),
+			AdminGroupObjectIDs: to.SliceOfPtrs(spec.AADAdminGroupObjectIDs...),
+		}
+	}
+
 	managedCluster.Tags = make(map[string]*string)
 	for key, val := range spec.Tags {
 		managedCluster.Tags[key] = to.Ptr(val)
