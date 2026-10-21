@@ -30,6 +30,9 @@ spec:
               authBaseUrl:
                 nullable: true
                 type: string
+              authMode:
+                nullable: true
+                type: string
               authorizedIpRanges:
                 items:
                   nullable: true
@@ -45,9 +48,6 @@ spec:
               clusterName:
                 nullable: true
                 type: string
-              disableLocalAccounts:
-                nullable: true
-                type: boolean
               dnsPrefix:
                 nullable: true
                 type: string

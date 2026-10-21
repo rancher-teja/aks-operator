@@ -1116,6 +1116,36 @@ var _ = Describe("buildUpstreamClusterState", func() {
 		Expect(upstreamSpec.AuthorizedIPRanges).To(Equal(utils.ConvertToPointerOfSlice(clusterState.Properties.APIServerAccessProfile.AuthorizedIPRanges)))
 	})
 
+	It("should map managed Entra ID with Azure RBAC to authMode for imported clusters", func() {
+		clusterState.Properties.AADProfile = &armcontainerservice.ManagedClusterAADProfile{
+			Managed:             to.Ptr(true),
+			EnableAzureRBAC:     to.Ptr(true),
+			AdminGroupObjectIDs: utils.ConvertToSliceOfPointers(to.Ptr([]string{"test-admin-group-id"})),
+		}
+		clusterState.Properties.DisableLocalAccounts = to.Ptr(true)
+		clusterClientMock.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(
+			armcontainerservice.ManagedClustersClientGetResponse{
+				ManagedCluster: *clusterState,
+			}, nil)
+
+		upstreamSpec, err := handler.buildUpstreamClusterState(ctx, credentials, &aksConfig.Spec)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(upstreamSpec.AuthMode).To(Equal(to.Ptr(aksv1.AuthModeEntraAzureRBAC)))
+		Expect(upstreamSpec.AADAdminGroupObjectIDs).To(Equal([]string{"test-admin-group-id"}))
+	})
+
+	It("should map clusters without managed Entra ID to local authMode", func() {
+		clusterState.Properties.AADProfile = nil
+		clusterClientMock.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(
+			armcontainerservice.ManagedClustersClientGetResponse{
+				ManagedCluster: *clusterState,
+			}, nil)
+
+		upstreamSpec, err := handler.buildUpstreamClusterState(ctx, credentials, &aksConfig.Spec)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(upstreamSpec.AuthMode).To(Equal(to.Ptr(aksv1.AuthModeLocal)))
+	})
+
 	It("should fail if azure client fails to get cluster", func() {
 		clusterClientMock.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(
 			armcontainerservice.ManagedClustersClientGetResponse{

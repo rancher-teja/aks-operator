@@ -914,6 +914,18 @@ func (h *Handler) buildUpstreamClusterState(ctx context.Context, credentials *ak
 		}
 	}
 
+	// set auth mode from the managed Entra ID integration, imported clusters without it use local accounts
+	upstreamSpec.AuthMode = to.Ptr(aksv1.AuthModeLocal)
+	if clusterState.Properties.AADProfile != nil && aks.Bool(clusterState.Properties.AADProfile.Managed) {
+		upstreamSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraKubernetesRBAC)
+		if aks.Bool(clusterState.Properties.AADProfile.EnableAzureRBAC) {
+			upstreamSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraAzureRBAC)
+		}
+		for _, groupID := range clusterState.Properties.AADProfile.AdminGroupObjectIDs {
+			upstreamSpec.AADAdminGroupObjectIDs = append(upstreamSpec.AADAdminGroupObjectIDs, aks.String(groupID))
+		}
+	}
+
 	return upstreamSpec, err
 }
 

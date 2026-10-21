@@ -146,16 +146,24 @@ type AKSClusterConfigSpec struct {
 	ManagedIdentity *bool `json:"managedIdentity" norman:"pointer"`
 	// UserAssignedIdentity - User assigned identity to be used for the cluster.
 	UserAssignedIdentity *string `json:"userAssignedIdentity" norman:"pointer"`
-	// DisableLocalAccounts - Whether local accounts (admin kubeconfig access) are disabled on the cluster.
-	// When true, Rancher authenticates to the cluster with Microsoft Entra ID tokens.
-	// Requires AADAdminGroupObjectIDs to be set.
+	// AuthMode - How users and Rancher authenticate to and are authorized on the cluster.
+	// "local" uses local accounts with Kubernetes RBAC (default).
+	// "entraKubernetesRBAC" uses Microsoft Entra ID with Kubernetes RBAC and disables local accounts.
+	// "entraAzureRBAC" uses Microsoft Entra ID with Azure RBAC and disables local accounts.
+	// +kubebuilder:validation:Enum=local;entraKubernetesRBAC;entraAzureRBAC
 	// +optional
-	DisableLocalAccounts *bool `json:"disableLocalAccounts,omitempty" norman:"pointer,noupdate"`
+	AuthMode *string `json:"authMode,omitempty" norman:"pointer,noupdate"`
 	// AADAdminGroupObjectIDs - Microsoft Entra ID group object IDs granted cluster-admin on the managed Entra ID integration.
-	// Required when DisableLocalAccounts is true.
+	// Required when AuthMode is entraKubernetesRBAC. Optional when AuthMode is entraAzureRBAC.
 	// +optional
 	AADAdminGroupObjectIDs []string `json:"aadAdminGroupObjectIds,omitempty" norman:"noupdate"`
 }
+
+const (
+	AuthModeLocal               = "local"
+	AuthModeEntraKubernetesRBAC = "entraKubernetesRBAC"
+	AuthModeEntraAzureRBAC      = "entraAzureRBAC"
+)
 
 type AKSClusterConfigStatus struct {
 	Phase          string `json:"phase"`

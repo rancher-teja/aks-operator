@@ -242,9 +242,9 @@ func (in *AKSClusterConfigSpec) DeepCopyInto(out *AKSClusterConfigSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.DisableLocalAccounts != nil {
-		in, out := &in.DisableLocalAccounts, &out.DisableLocalAccounts
-		*out = new(bool)
+	if in.AuthMode != nil {
+		in, out := &in.AuthMode, &out.AuthMode
+		*out = new(string)
 		**out = **in
 	}
 	if in.AADAdminGroupObjectIDs != nil {

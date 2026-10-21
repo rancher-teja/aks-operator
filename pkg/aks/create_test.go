@@ -610,7 +610,7 @@ func newTestClusterSpec() *aksv1.AKSClusterConfigSpec {
 	}
 }
 
-var _ = Describe("newManagedCluster with disableLocalAccounts", func() {
+var _ = Describe("newManagedCluster with authMode", func() {
 	var (
 		mockController       *gomock.Controller
 		workplacesClientMock *mock_services.MockWorkplacesClientInterface
@@ -634,30 +634,57 @@ var _ = Describe("newManagedCluster with disableLocalAccounts", func() {
 		mockController.Finish()
 	})
 
-	It("should set disableLocalAccounts and managed Entra ID integration", func() {
-		clusterSpec.DisableLocalAccounts = to.Ptr(true)
+	It("should keep local accounts and AAD profile unset for the local auth mode", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeLocal)
+
+		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(BeNil())
+		Expect(managedCluster.Properties.AADProfile).To(BeNil())
+	})
+
+	It("should keep local accounts and AAD profile unset when authMode is omitted", func() {
+		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(BeNil())
+		Expect(managedCluster.Properties.AADProfile).To(BeNil())
+	})
+
+	It("should enable Entra ID with Kubernetes RBAC and admin groups", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraKubernetesRBAC)
 		clusterSpec.AADAdminGroupObjectIDs = []string{"test-admin-group-id"}
 
 		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(managedCluster.Properties.DisableLocalAccounts).To(Equal(to.Ptr(true)))
-		Expect(managedCluster.Properties.AADProfile).ToNot(BeNil())
 		Expect(managedCluster.Properties.AADProfile.Managed).To(Equal(to.Ptr(true)))
+		Expect(managedCluster.Properties.AADProfile.EnableAzureRBAC).To(BeNil())
 		Expect(managedCluster.Properties.AADProfile.AdminGroupObjectIDs).To(HaveLen(1))
 		Expect(*managedCluster.Properties.AADProfile.AdminGroupObjectIDs[0]).To(Equal("test-admin-group-id"))
 	})
 
-	It("should return an error when disableLocalAccounts is true without admin groups", func() {
-		clusterSpec.DisableLocalAccounts = to.Ptr(true)
+	It("should return an error for Entra ID with Kubernetes RBAC without admin groups", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraKubernetesRBAC)
 
 		_, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("should leave local accounts and AAD profile unset when disableLocalAccounts is omitted", func() {
+	It("should enable Entra ID with Azure RBAC without requiring admin groups", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraAzureRBAC)
+
 		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(managedCluster.Properties.DisableLocalAccounts).To(BeNil())
-		Expect(managedCluster.Properties.AADProfile).To(BeNil())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(Equal(to.Ptr(true)))
+		Expect(managedCluster.Properties.AADProfile.Managed).To(Equal(to.Ptr(true)))
+		Expect(managedCluster.Properties.AADProfile.EnableAzureRBAC).To(Equal(to.Ptr(true)))
+		Expect(managedCluster.Properties.AADProfile.AdminGroupObjectIDs).To(BeEmpty())
+	})
+
+	It("should return an error for an unsupported authMode", func() {
+		clusterSpec.AuthMode = to.Ptr("unknown")
+
+		_, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).To(HaveOccurred())
 	})
 })
