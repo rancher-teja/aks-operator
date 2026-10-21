@@ -21,7 +21,16 @@ spec:
         properties:
           spec:
             properties:
+              aadAdminGroupObjectIds:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
               authBaseUrl:
+                nullable: true
+                type: string
+              authMode:
                 nullable: true
                 type: string
               authorizedIpRanges:
