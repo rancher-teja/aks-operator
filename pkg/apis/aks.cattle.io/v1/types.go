@@ -157,6 +157,10 @@ type AKSClusterConfigSpec struct {
 	// Required when AuthMode is entraKubernetesRBAC. Optional when AuthMode is entraAzureRBAC.
 	// +optional
 	AADAdminGroupObjectIDs []string `json:"aadAdminGroupObjectIds,omitempty" norman:"noupdate"`
+	// AutoAssignClusterAdminRole - When true and AuthMode is entraAzureRBAC, the operator assigns the Azure Kubernetes
+	// Service RBAC Cluster Admin role to the cloud credential's service principal on the cluster. Defaults to false.
+	// +optional
+	AutoAssignClusterAdminRole *bool `json:"autoAssignClusterAdminRole,omitempty" norman:"pointer,noupdate"`
 }
 
 const (
@@ -170,6 +174,10 @@ type AKSClusterConfigStatus struct {
 	FailureMessage string `json:"failureMessage"`
 	Message        string `json:"message"`
 	RBACEnabled    *bool  `json:"rbacEnabled"`
+	// ClusterAdminRoleAssignmentName - Name of the Azure role assignment the operator created for the cluster admin role.
+	// Empty when the operator did not create an assignment, so it is never deleted by the operator.
+	// +optional
+	ClusterAdminRoleAssignmentName string `json:"clusterAdminRoleAssignmentName,omitempty"`
 }
 
 type AKSNodePool struct {

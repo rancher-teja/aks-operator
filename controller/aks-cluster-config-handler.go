@@ -169,6 +169,11 @@ func (h *Handler) OnAksConfigRemoved(_ string, config *aksv1.AKSClusterConfig) (
 	}
 
 	if clusterExists {
+		// The role assignment is removed first, while its scope still exists. A failure is logged, not returned, so an
+		// assignment that can't be removed doesn't block deleting the cluster.
+		if err = h.removeClusterAdminRoleAssignment(ctx, config); err != nil {
+			logrus.Warnf("Could not remove cluster admin role assignment for cluster [%s (id: %s)]: %v", config.Spec.ClusterName, config.Name, err)
+		}
 		if err = aks.RemoveCluster(ctx, h.azureClients.clustersClient, &config.Spec); err != nil {
 			return config, fmt.Errorf("error removing cluster [%s (id: %s)] message %v", config.Spec.ClusterName, config.Name, err)
 		}
@@ -432,6 +437,10 @@ func (h *Handler) validateConfig(config *aksv1.AKSClusterConfig) error {
 		}
 	}
 
+	if aks.Bool(config.Spec.AutoAssignClusterAdminRole) && aks.String(config.Spec.AuthMode) != aksv1.AuthModeEntraAzureRBAC {
+		return fmt.Errorf("autoAssignClusterAdminRole requires authMode %s for cluster [%s (id: %s)]", aksv1.AuthModeEntraAzureRBAC, config.Spec.ClusterName, config.Name)
+	}
+
 	cannotBeNilError := "field [%s] must be provided for cluster [%s (id: %s)] config"
 	if config.Spec.ResourceLocation == "" {
 		return fmt.Errorf(cannotBeNilError, "resourceLocation", config.Spec.ClusterName, config.Name)
@@ -572,6 +581,9 @@ func (h *Handler) waitForCluster(config *aksv1.AKSClusterConfig) (*aksv1.AKSClus
 		return config, fmt.Errorf("creation for cluster [%s (id: %s)] status: %s", config.Spec.ClusterName, config.Name, clusterState)
 	}
 	if clusterState == ClusterStatusSucceeded {
+		if config, err = h.ensureClusterAdminRoleAssignment(ctx, config); err != nil {
+			return config, err
+		}
 		if err = h.createCASecret(ctx, config); err != nil {
 			if !apierrors.IsAlreadyExists(err) {
 				return config, err
