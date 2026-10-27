@@ -252,6 +252,11 @@ func (in *AKSClusterConfigSpec) DeepCopyInto(out *AKSClusterConfigSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.LocalAccountsEnabled != nil {
+		in, out := &in.LocalAccountsEnabled, &out.LocalAccountsEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	if in.AutoAssignClusterAdminRole != nil {
 		in, out := &in.AutoAssignClusterAdminRole, &out.AutoAssignClusterAdminRole
 		*out = new(bool)

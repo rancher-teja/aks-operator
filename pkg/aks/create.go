@@ -65,17 +65,20 @@ func createManagedCluster(ctx context.Context, cred *Credentials, workplacesClie
 	switch String(spec.AuthMode) {
 	case "", aksv1.AuthModeLocal:
 		// Local accounts with Kubernetes RBAC, Azure defaults apply.
+		if Bool(spec.LocalAccountsEnabled) {
+			return nil, fmt.Errorf("localAccountsEnabled is not supported when authMode is %s", aksv1.AuthModeLocal)
+		}
 	case aksv1.AuthModeEntraKubernetesRBAC:
 		if len(spec.AADAdminGroupObjectIDs) == 0 {
 			return nil, fmt.Errorf("aadAdminGroupObjectIds must be set when authMode is %s", aksv1.AuthModeEntraKubernetesRBAC)
 		}
-		managedCluster.Properties.DisableLocalAccounts = to.Ptr(true)
+		managedCluster.Properties.DisableLocalAccounts = to.Ptr(!Bool(spec.LocalAccountsEnabled))
 		managedCluster.Properties.AADProfile = &armcontainerservice.ManagedClusterAADProfile{
 			Managed:             to.Ptr(true),
 			AdminGroupObjectIDs: to.SliceOfPtrs(spec.AADAdminGroupObjectIDs...),
 		}
 	case aksv1.AuthModeEntraAzureRBAC:
-		managedCluster.Properties.DisableLocalAccounts = to.Ptr(true)
+		managedCluster.Properties.DisableLocalAccounts = to.Ptr(!Bool(spec.LocalAccountsEnabled))
 		managedCluster.Properties.AADProfile = &armcontainerservice.ManagedClusterAADProfile{
 			Managed:         to.Ptr(true),
 			EnableAzureRBAC: to.Ptr(true),

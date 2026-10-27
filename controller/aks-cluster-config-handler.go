@@ -150,6 +150,12 @@ func (h *Handler) OnAksConfigRemoved(_ string, config *aksv1.AKSClusterConfig) (
 
 	if config.Spec.Imported {
 		logrus.Infof("Cluster [%s (id: %s)] is imported, will not delete AKS cluster", config.Spec.ClusterName, config.Name)
+		// The cluster stays in Azure, but a Cluster Admin grant the operator made for it is removed.
+		ctxImport, cancelImport := context.WithCancel(context.Background())
+		defer cancelImport()
+		if err := h.removeClusterAdminRoleAssignment(ctxImport, config); err != nil {
+			logrus.Warnf("Could not remove cluster admin role assignment for imported cluster [%s (id: %s)]: %v", config.Spec.ClusterName, config.Name, err)
+		}
 		return config, nil
 	}
 	if config.Status.Phase == aksConfigNotCreatedPhase {
@@ -416,13 +422,57 @@ func (h *Handler) checkAndUpdate(config *aksv1.AKSClusterConfig) (*aksv1.AKSClus
 		}
 	}
 
+	if config, err = h.ensureAzureRBACAccess(ctx, config, &result.ManagedCluster); err != nil {
+		return config, err
+	}
+
+	if config, err = h.checkKubernetesRBACAccess(ctx, config); err != nil {
+		return config, err
+	}
+
 	logrus.Infof("Checking configuration for cluster [%s (id: %s)]", config.Spec.ClusterName, config.Name)
 	upstreamSpec, err := BuildUpstreamClusterState(ctx, h.secretsCache, h.secrets, &config.Spec)
 	if err != nil {
 		return config, err
 	}
+	if drift := authSettingsDrift(&config.Spec, upstreamSpec); drift != "" {
+		logrus.Warn(drift)
+		if config, err = h.setStatusMessage(config, drift); err != nil {
+			return config, err
+		}
+	}
 
 	return h.updateUpstreamClusterState(ctx, config, upstreamSpec)
+}
+
+// validateLocalAccountsEnabled rejects localAccountsEnabled for the local mode. An empty authMode is treated as local,
+// the same way the cluster is created.
+func validateLocalAccountsEnabled(spec *aksv1.AKSClusterConfigSpec) error {
+	mode := aks.String(spec.AuthMode)
+	if aks.Bool(spec.LocalAccountsEnabled) && (mode == "" || mode == aksv1.AuthModeLocal) {
+		return fmt.Errorf("localAccountsEnabled requires authMode %s or %s, not %s",
+			aksv1.AuthModeEntraKubernetesRBAC, aksv1.AuthModeEntraAzureRBAC, aksv1.AuthModeLocal)
+	}
+	return nil
+}
+
+// authSettingsDrift reports when authMode or localAccountsEnabled in the config no longer matches the cluster in Azure.
+// These settings are fixed at creation. The operator reports the difference and never changes Azure to match the config.
+// A config without an authMode (created before authMode existed) is not compared.
+func authSettingsDrift(spec, upstream *aksv1.AKSClusterConfigSpec) string {
+	if spec.AuthMode == nil {
+		return ""
+	}
+	modeDiffers := aks.String(spec.AuthMode) != aks.String(upstream.AuthMode)
+	localDiffers := aks.String(spec.AuthMode) != aksv1.AuthModeLocal &&
+		aks.Bool(spec.LocalAccountsEnabled) != aks.Bool(upstream.LocalAccountsEnabled)
+	if !modeDiffers && !localDiffers {
+		return ""
+	}
+	return fmt.Sprintf("Authentication settings for cluster [%s] differ from Azure: config has authMode %s and localAccountsEnabled %t, "+
+		"Azure has authMode %s and localAccountsEnabled %t. These settings cannot be changed after creation, so Azure was not changed.",
+		spec.ClusterName, aks.String(spec.AuthMode), aks.Bool(spec.LocalAccountsEnabled),
+		aks.String(upstream.AuthMode), aks.Bool(upstream.LocalAccountsEnabled))
 }
 
 func (h *Handler) validateConfig(config *aksv1.AKSClusterConfig) error {
@@ -437,6 +487,9 @@ func (h *Handler) validateConfig(config *aksv1.AKSClusterConfig) error {
 		}
 	}
 
+	if err := validateLocalAccountsEnabled(&config.Spec); err != nil {
+		return fmt.Errorf("%w for cluster [%s (id: %s)]", err, config.Spec.ClusterName, config.Name)
+	}
 	if aks.Bool(config.Spec.AutoAssignClusterAdminRole) && aks.String(config.Spec.AuthMode) != aksv1.AuthModeEntraAzureRBAC {
 		return fmt.Errorf("autoAssignClusterAdminRole requires authMode %s for cluster [%s (id: %s)]", aksv1.AuthModeEntraAzureRBAC, config.Spec.ClusterName, config.Name)
 	}
@@ -581,7 +634,7 @@ func (h *Handler) waitForCluster(config *aksv1.AKSClusterConfig) (*aksv1.AKSClus
 		return config, fmt.Errorf("creation for cluster [%s (id: %s)] status: %s", config.Spec.ClusterName, config.Name, clusterState)
 	}
 	if clusterState == ClusterStatusSucceeded {
-		if config, err = h.ensureClusterAdminRoleAssignment(ctx, config); err != nil {
+		if config, err = h.ensureAzureRBACAccess(ctx, config, &result.ManagedCluster); err != nil {
 			return config, err
 		}
 		if err = h.createCASecret(ctx, config); err != nil {
@@ -660,7 +713,23 @@ func (h *Handler) createCASecret(ctx context.Context, config *aksv1.AKSClusterCo
 	return err
 }
 
-// getClusterCAAndEndpoint retrieves the cluster's API server endpoint and CA certificate.
+// usesEntraToken reports whether Rancher signs in to the cluster with a Microsoft Entra ID token. The choice follows
+// authMode, not Azure's local-accounts setting. The Entra modes keep using Entra ID when localAccountsEnabled is true,
+// so enabling local accounts never silently switches Rancher to the admin kubeconfig. A spec without an authMode
+// (created before authMode existed) falls back to Azure's local-accounts setting.
+func usesEntraToken(spec *aksv1.AKSClusterConfigSpec, azureLocalAccountsDisabled bool) bool {
+	switch aks.String(spec.AuthMode) {
+	case aksv1.AuthModeEntraKubernetesRBAC, aksv1.AuthModeEntraAzureRBAC:
+		return true
+	case aksv1.AuthModeLocal:
+		return false
+	default:
+		return azureLocalAccountsDisabled
+	}
+}
+
+// getClusterCAAndEndpoint retrieves the cluster's API server endpoint and CA certificate. Entra modes read it through
+// the user credentials, so they never read the admin credentials.
 func (h *Handler) getClusterCAAndEndpoint(ctx context.Context, spec *aksv1.AKSClusterConfigSpec) (*rest.Config, error) {
 	logrus.Infof("Retrieving cluster CA and endpoint for cluster [%s]", spec.ClusterName)
 
@@ -669,9 +738,10 @@ func (h *Handler) getClusterCAAndEndpoint(ctx context.Context, spec *aksv1.AKSCl
 		return nil, err
 	}
 
-	if clusterState.Properties != nil &&
+	localAccountsDisabled := clusterState.Properties != nil &&
 		clusterState.Properties.DisableLocalAccounts != nil &&
-		*clusterState.Properties.DisableLocalAccounts {
+		*clusterState.Properties.DisableLocalAccounts
+	if usesEntraToken(spec, localAccountsDisabled) {
 		credentials, err := h.azureClients.clustersClient.ListClusterUserCredentials(
 			ctx,
 			spec.ResourceGroup,
@@ -718,7 +788,10 @@ func (h *Handler) getClusterKubeConfig(ctx context.Context, spec *aksv1.AKSClust
 		return nil, err
 	}
 
-	if clusterState.Properties != nil && clusterState.Properties.DisableLocalAccounts != nil && *clusterState.Properties.DisableLocalAccounts {
+	localAccountsDisabled := clusterState.Properties != nil &&
+		clusterState.Properties.DisableLocalAccounts != nil &&
+		*clusterState.Properties.DisableLocalAccounts
+	if usesEntraToken(spec, localAccountsDisabled) {
 		return h.getEntraClusterKubeConfig(ctx, spec)
 	}
 
@@ -936,6 +1009,10 @@ func (h *Handler) buildUpstreamClusterState(ctx context.Context, credentials *ak
 		for _, groupID := range clusterState.Properties.AADProfile.AdminGroupObjectIDs {
 			upstreamSpec.AADAdminGroupObjectIDs = append(upstreamSpec.AADAdminGroupObjectIDs, aks.String(groupID))
 		}
+	}
+	// localAccountsEnabled is independent of authMode, so it is read from Azure for the Entra modes only.
+	if aks.String(upstreamSpec.AuthMode) != aksv1.AuthModeLocal {
+		upstreamSpec.LocalAccountsEnabled = to.Ptr(!aks.Bool(clusterState.Properties.DisableLocalAccounts))
 	}
 
 	return upstreamSpec, err

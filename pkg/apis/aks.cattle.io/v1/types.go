@@ -157,6 +157,11 @@ type AKSClusterConfigSpec struct {
 	// Required when AuthMode is entraKubernetesRBAC. Optional when AuthMode is entraAzureRBAC.
 	// +optional
 	AADAdminGroupObjectIDs []string `json:"aadAdminGroupObjectIds,omitempty" norman:"noupdate"`
+	// LocalAccountsEnabled - When true, Azure local administrator accounts stay enabled on the cluster. The Entra ID
+	// authMode still decides how Rancher authenticates, so Rancher keeps using Entra ID. Only valid for
+	// entraKubernetesRBAC and entraAzureRBAC. Defaults to false.
+	// +optional
+	LocalAccountsEnabled *bool `json:"localAccountsEnabled,omitempty" norman:"pointer,noupdate"`
 	// AutoAssignClusterAdminRole - When true and AuthMode is entraAzureRBAC, the operator assigns the Azure Kubernetes
 	// Service RBAC Cluster Admin role to the cloud credential's service principal on the cluster. Defaults to false.
 	// +optional

@@ -74,6 +74,9 @@ spec:
               loadBalancerSku:
                 nullable: true
                 type: string
+              localAccountsEnabled:
+                nullable: true
+                type: boolean
               logAnalyticsWorkspaceGroup:
                 nullable: true
                 type: string

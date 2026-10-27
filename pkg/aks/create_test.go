@@ -688,3 +688,76 @@ var _ = Describe("newManagedCluster with authMode", func() {
 		Expect(err).To(HaveOccurred())
 	})
 })
+
+var _ = Describe("newManagedCluster with localAccountsEnabled", func() {
+	var (
+		mockController       *gomock.Controller
+		workplacesClientMock *mock_services.MockWorkplacesClientInterface
+		clusterSpec          *aksv1.AKSClusterConfigSpec
+		cred                 *Credentials
+	)
+
+	BeforeEach(func() {
+		mockController = gomock.NewController(GinkgoT())
+		workplacesClientMock = mock_services.NewMockWorkplacesClientInterface(mockController)
+		clusterSpec = newTestClusterSpec()
+		clusterSpec.Monitoring = to.Ptr(false)
+		clusterSpec.AADAdminGroupObjectIDs = []string{"group-object-id"}
+		cred = &Credentials{
+			ClientID:     "test-client-id",
+			ClientSecret: "test-client-secret",
+			TenantID:     "test-tenant-id",
+		}
+	})
+
+	AfterEach(func() {
+		mockController.Finish()
+	})
+
+	It("should disable local accounts for Kubernetes RBAC when localAccountsEnabled is omitted", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraKubernetesRBAC)
+
+		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(Equal(to.Ptr(true)))
+	})
+
+	It("should keep local accounts enabled for Kubernetes RBAC when localAccountsEnabled is true", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraKubernetesRBAC)
+		clusterSpec.LocalAccountsEnabled = to.Ptr(true)
+
+		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(Equal(to.Ptr(false)))
+		Expect(managedCluster.Properties.AADProfile).ToNot(BeNil())
+		Expect(managedCluster.Properties.AADProfile.Managed).To(Equal(to.Ptr(true)))
+		Expect(managedCluster.Properties.AADProfile.EnableAzureRBAC).To(BeNil())
+	})
+
+	It("should keep local accounts enabled for Azure RBAC when localAccountsEnabled is true", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraAzureRBAC)
+		clusterSpec.LocalAccountsEnabled = to.Ptr(true)
+
+		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(Equal(to.Ptr(false)))
+		Expect(managedCluster.Properties.AADProfile.EnableAzureRBAC).To(Equal(to.Ptr(true)))
+	})
+
+	It("should disable local accounts for Azure RBAC when localAccountsEnabled is false", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeEntraAzureRBAC)
+		clusterSpec.LocalAccountsEnabled = to.Ptr(false)
+
+		managedCluster, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(managedCluster.Properties.DisableLocalAccounts).To(Equal(to.Ptr(true)))
+	})
+
+	It("should return an error when localAccountsEnabled is true for the local auth mode", func() {
+		clusterSpec.AuthMode = to.Ptr(aksv1.AuthModeLocal)
+		clusterSpec.LocalAccountsEnabled = to.Ptr(true)
+
+		_, err := createManagedCluster(ctx, cred, workplacesClientMock, clusterSpec, "test-phase")
+		Expect(err).To(HaveOccurred())
+	})
+})
