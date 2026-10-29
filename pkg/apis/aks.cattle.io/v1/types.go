@@ -146,13 +146,43 @@ type AKSClusterConfigSpec struct {
 	ManagedIdentity *bool `json:"managedIdentity" norman:"pointer"`
 	// UserAssignedIdentity - User assigned identity to be used for the cluster.
 	UserAssignedIdentity *string `json:"userAssignedIdentity" norman:"pointer"`
+	// AuthMode - How users and Rancher authenticate to and are authorized on the cluster.
+	// "local" uses local accounts with Kubernetes RBAC (default).
+	// "entraKubernetesRBAC" uses Microsoft Entra ID with Kubernetes RBAC and disables local accounts.
+	// "entraAzureRBAC" uses Microsoft Entra ID with Azure RBAC and disables local accounts.
+	// +kubebuilder:validation:Enum=local;entraKubernetesRBAC;entraAzureRBAC
+	// +optional
+	AuthMode *string `json:"authMode,omitempty" norman:"pointer,noupdate"`
+	// AADAdminGroupObjectIDs - Microsoft Entra ID group object IDs granted cluster-admin on the managed Entra ID integration.
+	// Required when AuthMode is entraKubernetesRBAC. Optional when AuthMode is entraAzureRBAC.
+	// +optional
+	AADAdminGroupObjectIDs []string `json:"aadAdminGroupObjectIds,omitempty" norman:"noupdate"`
+	// LocalAccountsEnabled - When true, Azure local administrator accounts stay enabled on the cluster. The Entra ID
+	// authMode still decides how Rancher authenticates, so Rancher keeps using Entra ID. Only valid for
+	// entraKubernetesRBAC and entraAzureRBAC. Defaults to false.
+	// +optional
+	LocalAccountsEnabled *bool `json:"localAccountsEnabled,omitempty" norman:"pointer,noupdate"`
+	// AutoAssignClusterAdminRole - When true and AuthMode is entraAzureRBAC, the operator assigns the Azure Kubernetes
+	// Service RBAC Cluster Admin role to the cloud credential's service principal on the cluster. Defaults to false.
+	// +optional
+	AutoAssignClusterAdminRole *bool `json:"autoAssignClusterAdminRole,omitempty" norman:"pointer,noupdate"`
 }
+
+const (
+	AuthModeLocal               = "local"
+	AuthModeEntraKubernetesRBAC = "entraKubernetesRBAC"
+	AuthModeEntraAzureRBAC      = "entraAzureRBAC"
+)
 
 type AKSClusterConfigStatus struct {
 	Phase          string `json:"phase"`
 	FailureMessage string `json:"failureMessage"`
 	Message        string `json:"message"`
 	RBACEnabled    *bool  `json:"rbacEnabled"`
+	// ClusterAdminRoleAssignmentName - Name of the Azure role assignment the operator created for the cluster admin role.
+	// Empty when the operator did not create an assignment, so it is never deleted by the operator.
+	// +optional
+	ClusterAdminRoleAssignmentName string `json:"clusterAdminRoleAssignmentName,omitempty"`
 }
 
 type AKSNodePool struct {

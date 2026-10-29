@@ -61,6 +61,35 @@ func createManagedCluster(ctx context.Context, cred *Credentials, workplacesClie
 		},
 	}
 
+	// Azure only accepts disableLocalAccounts on a cluster with managed Entra ID integration.
+	switch String(spec.AuthMode) {
+	case "", aksv1.AuthModeLocal:
+		// Local accounts with Kubernetes RBAC, Azure defaults apply.
+		if Bool(spec.LocalAccountsEnabled) {
+			return nil, fmt.Errorf("localAccountsEnabled is not supported when authMode is %s", aksv1.AuthModeLocal)
+		}
+	case aksv1.AuthModeEntraKubernetesRBAC:
+		if len(spec.AADAdminGroupObjectIDs) == 0 {
+			return nil, fmt.Errorf("aadAdminGroupObjectIds must be set when authMode is %s", aksv1.AuthModeEntraKubernetesRBAC)
+		}
+		managedCluster.Properties.DisableLocalAccounts = to.Ptr(!Bool(spec.LocalAccountsEnabled))
+		managedCluster.Properties.AADProfile = &armcontainerservice.ManagedClusterAADProfile{
+			Managed:             to.Ptr(true),
+			AdminGroupObjectIDs: to.SliceOfPtrs(spec.AADAdminGroupObjectIDs...),
+		}
+	case aksv1.AuthModeEntraAzureRBAC:
+		managedCluster.Properties.DisableLocalAccounts = to.Ptr(!Bool(spec.LocalAccountsEnabled))
+		managedCluster.Properties.AADProfile = &armcontainerservice.ManagedClusterAADProfile{
+			Managed:         to.Ptr(true),
+			EnableAzureRBAC: to.Ptr(true),
+		}
+		if len(spec.AADAdminGroupObjectIDs) > 0 {
+			managedCluster.Properties.AADProfile.AdminGroupObjectIDs = to.SliceOfPtrs(spec.AADAdminGroupObjectIDs...)
+		}
+	default:
+		return nil, fmt.Errorf("authMode '%s' is not supported", String(spec.AuthMode))
+	}
+
 	managedCluster.Tags = make(map[string]*string)
 	for key, val := range spec.Tags {
 		managedCluster.Tags[key] = to.Ptr(val)

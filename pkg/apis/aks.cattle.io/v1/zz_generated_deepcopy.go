@@ -242,6 +242,26 @@ func (in *AKSClusterConfigSpec) DeepCopyInto(out *AKSClusterConfigSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.AuthMode != nil {
+		in, out := &in.AuthMode, &out.AuthMode
+		*out = new(string)
+		**out = **in
+	}
+	if in.AADAdminGroupObjectIDs != nil {
+		in, out := &in.AADAdminGroupObjectIDs, &out.AADAdminGroupObjectIDs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.LocalAccountsEnabled != nil {
+		in, out := &in.LocalAccountsEnabled, &out.LocalAccountsEnabled
+		*out = new(bool)
+		**out = **in
+	}
+	if in.AutoAssignClusterAdminRole != nil {
+		in, out := &in.AutoAssignClusterAdminRole, &out.AutoAssignClusterAdminRole
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

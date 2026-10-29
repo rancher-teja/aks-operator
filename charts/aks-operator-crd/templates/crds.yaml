@@ -21,7 +21,16 @@ spec:
         properties:
           spec:
             properties:
+              aadAdminGroupObjectIds:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
               authBaseUrl:
+                nullable: true
+                type: string
+              authMode:
                 nullable: true
                 type: string
               authorizedIpRanges:
@@ -30,6 +39,9 @@ spec:
                   type: string
                 nullable: true
                 type: array
+              autoAssignClusterAdminRole:
+                nullable: true
+                type: boolean
               azureCredentialSecret:
                 nullable: true
                 type: string
@@ -62,6 +74,9 @@ spec:
               loadBalancerSku:
                 nullable: true
                 type: string
+              localAccountsEnabled:
+                nullable: true
+                type: boolean
               logAnalyticsWorkspaceGroup:
                 nullable: true
                 type: string
@@ -194,6 +209,9 @@ spec:
             type: object
           status:
             properties:
+              clusterAdminRoleAssignmentName:
+                nullable: true
+                type: string
               failureMessage:
                 nullable: true
                 type: string
