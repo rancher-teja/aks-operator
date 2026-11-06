@@ -35,7 +35,7 @@ func GetClusterKubeConfig(ctx context.Context, secretsCache wranglerv1.SecretCac
 	}
 	return h.getClusterKubeConfig(ctx, spec)
 }
-
+//testing testing testing 
 // BuildUpstreamClusterState creates an AKSClusterConfigSpec (spec for the AKS cluster state) from the existing
 // cluster configuration.
 func BuildUpstreamClusterState(ctx context.Context, secretsCache wranglerv1.SecretCache, secretClient wranglerv1.SecretClient, spec *aksv1.AKSClusterConfigSpec) (*aksv1.AKSClusterConfigSpec, error) {
